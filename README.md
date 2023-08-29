@@ -41,13 +41,13 @@ Namely if I have 32-choose-5, there is a discrete number of possible combination
 
 ```python
 x_estimaged=shannon_entropy([5/32, (32-5)/32]) # 0.6
-yet the actual combinations:
+# yet the actual combinations:
 def entropy(n:int, k:int)->float:
     return math.log2(math.comb(n,k))
 x_actual=entropy(32,5) / 32 # 0.55061
 ```
 
-In other words, treating a binary system of `p = true_samples / total_samples` is wildly innacurate until you start to 
+In other words, treating a binary system of `p = true_samples / total_samples` is wildly inaccurate until you start to 
 approach `total_samples = infinity`.
 
 For VERY small `total_samples`, quantization is so dominant that the error can be thousands of percent off.
@@ -72,13 +72,13 @@ or rather
 $$entropy = k * (\log_2 n - \log_2 (k+1) + 1.5)$$
 
 This is not a HARD limit (like Shannon), but provides a very very close upper-limit to the TRUE entropy level 
-(defined as math.comb(n,k)), and through a specific algorithm can be shown to always only need 1.5 bits extra PER element (k).
+(defined as `math.comb(n,k)`), and through a specific algorithm can be shown to always only need 1.5 bits extra PER element (k).
 
 This estimate is also not accurate within `1/4N < K < 3/4N`.
 
 # ALGORITHM
 
-* Separate a key-space into two parts; high-frequency and low-frequency
+* Separate a key-space into two parts; **high-frequency** and **low-frequency**
 * Define a log-base-2 for the following
 
 ```python
@@ -89,14 +89,14 @@ This estimate is also not accurate within `1/4N < K < 3/4N`.
 
 * The high-frequency has a size of `k * br` bits (exactly).
 * You can random-access skip over the high-frequency bits because it is deterministic.. EACH entry K can be found at offset `start + k * br`
-* Now store a low-frequency *pallet* bitmap size exactly `2**bk`.  This contains 1 bit for each partition of 2**bn.. If 1, there is at least 1 element (k)
+* Now store a low-frequency *pallet* bitmap size exactly `2**bk`.  This contains 1 bit for each partition of `2**bn` .. If 1, there is at least 1 element (k)
 * Now take the population of the pallet
 
 ```python
     u=pallet.bit_count()  # Number of 1s; number of partitions that have at least 1 element; u standard for 'unique'
     c=k-u                 # Number of collisions; e.g. number of elements that must be bunched up in another pallet partition
     collision_max_size = clg(u)*c-lookup(u,c)          # how many bits needed to "find" collisions (method-B)
-    extra_bits = min(u - 1, collsion_max_size) # lesser of method-A and method-B (see below)
+    extra_bits = min(u - 1, collision_max_size) # lesser of method-A and method-B (see below)
 ```
 
 * This is the end of the 'fixed-length' portion; The deterministic portion.. The rest depends on the distribution.  What follows is the collision resolution bit-sequence (finite state machine).  There are two sub-flavors
@@ -463,6 +463,35 @@ Another quirk is that, like range-encoding, you need a full 11 bit register. So 
 or so.  In practice, when coupled with a statistical model, you wind up with hundreds of bytes of overhead for the higher
 fidelity histogram.
 
+## parquet (delta-encoding)
+
+Parquet uses a simple delta-encoding technique for storing millions of coefficients that have low entropy. It can either
+utilize a dictionary - such that 4 distinct items only consume 2 bits for each row-element in the column. It can encode deltas such that
+if the dynamic range is only 256 most of the time, it can encode in 8bits or under.
+
+My main issue with this approach are that you must decode from the first byte of a sequence, and you must decode every
+element up to your target index.  Thus, in practice, parquet (and similar columnar storage engines) use mini-batches, and
+decompress the entire mini-batch and hand off to the filter stage.
+
+Further, each minibatch is independently compressed (which is a good thing from a parallelism perspective), which means
+there is much redundancy between batches.. This would only make a difference if the batch can compress to around a cache-line (64 bytes).
+That would be true for HIGHLY regular data (all indexes in a series, 100,101,102, etc).
+
+Further, various types of delta or min-max encoding have "spoiler" datasets.. Those which could be larger than if no encoding
+were performed at all.
+
+Additionally, most of the time, when we "compress" a parquet file, we just use the smallest compressor available, and zstd
+produces almost the same size as the parquet delta-encoding (when used in the feather IPC storage layer of polars). Thus
+a high performance assembly optimized decompressor is 4x faster than a custom parquet delta technique.
+
+In some experiments, I have found that BSplit compresses 2x better than zstd.  Further, since BSplit is deterministic (there
+is no try-a-different-method), it winds up being faster than the `zstd -22` max-compression setting. Again, there are no
+'patterns' from which zstd can benefit for my problem-space; but an operator may not know this; 
+and thus just use the maximum setting.
+
+Of course, in use-cases where there ARE patterns, zstd will dominate in both compression and possibly even performance.
+
+
 ## Bernoulli Split - comparison
 
 The reasons for continuing with BSplit given the playing field are partially due to engineering needs to produce compact 
@@ -473,7 +502,7 @@ At 1-delta-in-64 with NO pattern, range-encoding fails miserably (consuming at l
 At 1-delta-in-64, pure ANS **can** do well. You store a single statistic (1/64), and it will semi-efficiently process all the bits.  
 Howevever, you have to serially decode every bit.. So you'd need to perform 64 decodes to find the 1 bit.
 
-BSplit, on the other hand ONLY encodes the minority bit.  So it runs the same if we have 1-in-64 or 63-in-64. Thus at these
+BSplit, on the other hand BSplit ONLY encodes the minority bit.  So it runs the same if we have 1-in-64 or 63-in-64. Thus at these
 ratios, our estimator above suggests `7.5 bits per element`. Just shy of a byte.  Note, this would be similar to
 the 7/8 encoding of FAX4 above. HOWEVER, the 7/8 encoding can only get worse; e.g. if gaps are greater than 128, it uses 16 bits
 per element.  BSplit, on the other hand is indifferent to WHERE the bits are; only that there is an average ratio of 1-to-64.
@@ -501,7 +530,7 @@ avg-ratio  bits-per-element
 ```
 
 Thus we can accurately predict the upper-bound compression of a bitset purely by determining the 1-to-0 ratio. Or
-more specifically the minority / total.
+more specifically the `minority / total`.
 
 Depending on the sparseness, the computation can skip over all the residuals when performing random access.
 
