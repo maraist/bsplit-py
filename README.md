@@ -25,17 +25,16 @@ This project contains my various explorations over the years of finding mathmati
 search/discovery and compression (with random access)
 
 # Data Format
-
-![Section Layout](/assets/BSplitPage1.svg)
-
-![Collision Bits](/assets/BSplitPage2.svg)
+![BSplit macro block](/assets/bsplit_outer_layer.svg)
+![Left/Right bits](/assets/bsplit_lr.svg)
+![Collision Bits](/assets/bsplit_collision.svg)
 # Sterling/ Shannon
 
 The bernoulli distribution is the basis of the Shannon Entropy approximation:
 
 ```python
 def shannon_entropy(probs:list[float])->float: 
-    return -sum([ p * math.log2(1/p) for p in probs]) 
+    return -sum([ p * math.log2(p) for p in probs]) 
 ```
 
 $$ShannonEntropy = - \sum_{i=0}^{K} p_i * \log_2 p_i  $$
