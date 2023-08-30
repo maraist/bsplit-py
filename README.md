@@ -27,7 +27,7 @@ search/discovery and compression (with random access)
 # Data Format
 ![BSplit macro block](/assets/bsplit_outer_layout.svg)
 ![Left/Right bits](/assets/bsplit_lr.svg)
-![Collision Bits](/assets/bsplit_collision.svg)
+![Collision Bits](/assets/bsplit_collision1.svg)
 
 # Sterling/ Shannon
 
