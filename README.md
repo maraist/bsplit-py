@@ -24,6 +24,11 @@ This produces something LIKE a bell-shaped curve.
 This project contains my various explorations over the years of finding mathmatical boundaries for use in 
 search/discovery and compression (with random access)
 
+# Data Format
+
+![Section Layout](/assets/BSplitPage1.svg)
+
+![Collision Bits](/assets/BSplitPage2.svg)
 # Sterling/ Shannon
 
 The bernoulli distribution is the basis of the Shannon Entropy approximation:
