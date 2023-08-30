@@ -25,9 +25,10 @@ This project contains my various explorations over the years of finding mathmati
 search/discovery and compression (with random access)
 
 # Data Format
-![BSplit macro block](/assets/bsplit_outer_layer.svg)
+![BSplit macro block](/assets/bsplit_outer_layout.svg)
 ![Left/Right bits](/assets/bsplit_lr.svg)
 ![Collision Bits](/assets/bsplit_collision.svg)
+
 # Sterling/ Shannon
 
 The bernoulli distribution is the basis of the Shannon Entropy approximation:
